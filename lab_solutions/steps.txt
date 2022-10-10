@@ -1,0 +1,92 @@
+########################################################################################
+#################### Utilize REST API Error Control Flow Techniques #################### 
+########################################################################################
+
+********************************************
+****************** Task 2 ****************** 
+********************************************
+** Step 5 **
+pipenv install
+
+** Step 6 **
+pipenv shell
+
+********************************************
+****************** Task 3 ****************** 
+********************************************
+** Step 1 **
+    def test_network_timeout_throws(self):
+        """ Send a request which will raise a ConnectTimeout Exception """
+        self.msg = Messenger(requests=mock_requests_timeout.Mock(timeout_first_ok=100))
+        self.assertRaises(ConnectTimeout, self.msg.get_messages)
+
+********************************************
+****************** Task 4 ****************** 
+********************************************
+** Step 1 **
+    def get_messages(self):
+        """ Get a list of messages in a room. 
+        Maximum number of items per page is set to 3 """
+
+        tries = 0
+        while True:
+            tries += 1
+            try:
+                self.response = self.requests.get(self.api_url, headers=self.headers)
+
+                # Everything ok?
+                if self.response:
+                    self.print_current_page()
+                    return self.response
+
+                # If not, should we try again later?
+
+                # Throw if not ok (2xx)
+                self.response.raise_for_status()
+ 
+            # Network timeout, should we retry?
+            except ConnectTimeout:
+                if tries < self.request_retries:
+                    continue
+                else:
+                    raise
+                
+        return self.response
+
+** Step 2 **
+    def test_network_timeout_handled(self):
+        """ Send a request which will handle a ConnectTimeout Exception """
+        self.msg = Messenger(requests=mock_requests_timeout.Mock(timeout_first_ok=3))
+        self.msg.get_messages()
+
+********************************************
+****************** Task 5 ****************** 
+********************************************
+** Step 1 **
+    def test_rate_limit_throws(self):
+        """ Send consecutive requests which will be rate limited by the API server. Should return correct error. """
+        self.msg = Messenger(requests=mock_requests_rate_limit.Mock(rate_limited=[1, 2, 3, 4]))
+        self.assertRaises(HTTPError, self.msg.get_messages)
+
+********************************************
+****************** Task 6 ****************** 
+********************************************
+** Step 1 **
+                # If not, should we try again later? 
+                if self.response.status_code == 429 and tries < self.request_retries:
+                    try:
+                        retry_after = int(self.response.headers.get('Retry-After'))
+                    except Exception:
+                        retry_after = 1
+    
+                    print(f'Waiting for {retry_after} second(s) ...')
+                    sleep(retry_after)
+                    continue
+
+** Step 2 **
+    def test_rate_limit_handled(self):
+        """ Send consecutive requests. First 2 will be rate-limited but 3rd one should work. """
+        self.msg = Messenger(requests=mock_requests_rate_limit.Mock(rate_limited=[1, 2]))
+        msgs = self.msg.get_messages()
+        self.assertIsNotNone(msgs)
+
